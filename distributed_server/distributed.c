@@ -35,15 +35,29 @@ void *send_info(void *param){
     char buffer[1024] = {0};
     while(!run){
         pthread_cond_wait(&condition, &mutex);
-        char *json = malloc(130*sizeof(char));
+        char *json = malloc(200*sizeof(char));
         sprintf(
             json,
-            "{\"temperature\": %.2f, \"living_room\": %d, \"kitchen\": %d, \"living_room_door\": %d, \"bedroom_window_01\": %d}",
+            "{
+                \"temperature\": %.2f,
+                \"living_room\": %d,
+                \"kitchen\": %d,
+                \"kitchen_door\": %d,
+                \"kitchen_window\": %d,
+                \"living_room_door\": %d,
+                \"living_room_window\": %d,
+                \"bedroom_window_01\": %d,
+                \"bedroom_window_02\": %d
+            }",
             conn_obj->bme280_sensor.temperature,
-	    conn_obj->gpio_input.living_room,
-	    conn_obj->gpio_input.kitchen,
+            conn_obj->gpio_input.living_room,
+            conn_obj->gpio_input.kitchen,
+            conn_obj->gpio_input.kitchen_door,
+            conn_obj->gpio_input.kitchen_window,
             conn_obj->gpio_input.living_room_door,
-            conn_obj->gpio_input.bedroom_window_01
+            conn_obj->gpio_input.living_room_window,
+            conn_obj->gpio_input.bedroom_window_01,
+            conn_obj->gpio_input.bedroom_window_02
         );
         printf("SENDING: %s\n", json);
         send(conn_obj->sock , json , strlen(json) , 0 );
