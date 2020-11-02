@@ -35,20 +35,20 @@ void *send_info(void *param){
     char buffer[1024] = {0};
     while(!run){
         pthread_cond_wait(&condition, &mutex);
-        char *json = malloc(200*sizeof(char));
+        char *json = malloc(300*sizeof(char));
         sprintf(
             json,
-            "{
-                \"temperature\": %.2f,
-                \"living_room\": %d,
-                \"kitchen\": %d,
-                \"kitchen_door\": %d,
-                \"kitchen_window\": %d,
-                \"living_room_door\": %d,
-                \"living_room_window\": %d,
-                \"bedroom_window_01\": %d,
-                \"bedroom_window_02\": %d
-            }",
+            "{"
+            "   \"temperature\": %.2f,"
+            "   \"living_room\": %d,"
+            "   \"kitchen\": %d,"
+            "   \"kitchen_door\": %d,"
+            "   \"kitchen_window\": %d,"
+            "   \"living_room_door\": %d,"
+            "   \"living_room_window\": %d,"
+            "   \"bedroom_window_01\": %d,"
+            "   \"bedroom_window_02\": %d"
+            "}",
             conn_obj->bme280_sensor.temperature,
             conn_obj->gpio_input.living_room,
             conn_obj->gpio_input.kitchen,
