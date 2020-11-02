@@ -88,6 +88,16 @@ void *read_input_sensors(void *param){
     pthread_mutex_unlock(&mutex_input);
 }
 
+void *receive_commands(void *param){
+    struct communication * conn_obj = (struct communication *)param;
+    char buffer[1024] = {0};
+    int valread;
+    while(1){
+        valread = read(conn_obj->sock , buffer, 1024);
+        printf("BUFFER: %s\n", buffer);
+    }
+}
+
 void exit_program(int signal){
     execute = 0;
 };
@@ -154,10 +164,11 @@ int main(int argc, char const *argv[]) {
     pthread_cond_init(&condition_bme280, NULL);
     pthread_cond_init(&condition_input, NULL);
 
-    pthread_t thread_id[3];
+    pthread_t thread_id[4];
     pthread_create(&thread_id[0], NULL, send_info, (void *)&conn_obj);
-    pthread_create(&thread_id[1], NULL, read_bme280_sensor, (void *)&conn_obj.bme280_sensor);
-    pthread_create(&thread_id[2], NULL, read_input_sensors, (void *)&conn_obj.gpio_input);
+    pthread_create(&thread_id[1], NULL, receive_commands, (void *)&conn_obj);
+    pthread_create(&thread_id[2], NULL, read_bme280_sensor, (void *)&conn_obj.bme280_sensor);
+    pthread_create(&thread_id[3], NULL, read_input_sensors, (void *)&conn_obj.gpio_input);
 
     while(execute){sleep(1);}
 
@@ -165,5 +176,6 @@ int main(int argc, char const *argv[]) {
     pthread_join(&thread_id[0], NULL);
     pthread_join(&thread_id[1], NULL);
     pthread_join(&thread_id[2], NULL);
+    pthread_join(&thread_id[3], NULL);
 	return 0; 
 } 
