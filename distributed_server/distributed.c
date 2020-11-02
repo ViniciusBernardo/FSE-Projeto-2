@@ -35,16 +35,18 @@ void *send_info(void *param){
     char buffer[1024] = {0};
     while(!run){
         pthread_cond_wait(&condition, &mutex);
-        char *json = malloc(70*sizeof(char));
+        char *json = malloc(130*sizeof(char));
         sprintf(
-            temp,
-            "{\"temperature\": %.2f, \"living_room\": %d, \"bedroom_window_01\": %d}",
+            json,
+            "{\"temperature\": %.2f, \"living_room\": %d, \"kitchen\": %d, \"living_room_door\": %d, \"bedroom_window_01\": %d}",
             conn_obj->bme280_sensor.temperature,
-            conn_obj->input_sensors.living_room,
-            conn_obj->input_sensors.bedroom_window_01
+	    conn_obj->gpio_input.living_room,
+	    conn_obj->gpio_input.kitchen,
+            conn_obj->gpio_input.living_room_door,
+            conn_obj->gpio_input.bedroom_window_01
         );
-        printf("SENDING: %s\n", temp);
-        send(conn_obj->sock , temp , strlen(temp) , 0 ); 
+        printf("SENDING: %s\n", json);
+        send(conn_obj->sock , json , strlen(json) , 0 );
         run = 0;
     }
     pthread_mutex_unlock(&mutex);
@@ -84,6 +86,13 @@ void sig_handler(int signum){
     }
     pthread_mutex_unlock(&mutex_bme280);
 
+    pthread_mutex_lock(&mutex_input);
+    if(run_input == 0){
+        run_input = 1;
+        pthread_cond_signal(&condition_input);
+    }
+    pthread_mutex_unlock(&mutex_input);
+
     pthread_mutex_lock(&mutex);
     if(run == 0){
         run = 1;
@@ -97,7 +106,8 @@ int main(int argc, char const *argv[]) {
 	int sock = 0; 
 	struct sockaddr_in serv_addr; 
 	struct communication conn_obj;
-	conn_obj.bme280_sensor->sensor_bme280 = create_sensor("/dev/i2c-1");
+	conn_obj.bme280_sensor.sensor_bme280 = create_sensor("/dev/i2c-1");
+	conn_obj.bme280_sensor.temperature = 22.15;
 	if ((conn_obj.sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
 		printf("\n Socket creation error \n"); 
 		return -1; 
