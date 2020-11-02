@@ -2,7 +2,7 @@ import socket
 import time
 import json
 
-HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
+HOST = '192.168.0.53'  # Standard loopback interface address (localhost)
 PORT = 8042        # Port to listen on (non-privileged ports are > 1023)
 
 def initiate_communication():
@@ -15,7 +15,6 @@ def initiate_communication():
             if data:
                 data = json.loads(data)
                 print("RECIEVED: ", data)
-                conn.sendall(b'recieved')
 
 if __name__ == "__main__":
     initiate_communication()
