@@ -25,32 +25,12 @@ unsigned int n_executions = 0;
 int execute = 1;
 
 struct system {
+    int sock;
     struct external_measurement bme280_sensor;
     struct input_sensors gpio_input;
 };
 
 void *send_info(void *param){
-	int sock = 0;
-	struct sockaddr_in serv_addr;
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		printf("\n Socket creation error \n");
-		return -1;
-	}
-
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
-
-	// Convert IPv4 and IPv6 addresses from text to binary form
-	if(inet_pton(AF_INET, CENTRAL_HOST, &serv_addr.sin_addr)<=0) {
-		printf("\nInvalid address/ Address not supported \n");
-		return -1;
-	}
-
-	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		printf("\nConnection Failed \n");
-		return -1;
-	}
-
     pthread_mutex_lock(&mutex);
     struct system * system_state = (struct system *)param;
     char buffer[1024] = {0};
@@ -81,7 +61,7 @@ void *send_info(void *param){
             system_state->gpio_input.bedroom_window_02
         );
         printf("SENDING: %s\n", json);
-        send(sock , json , strlen(json) , 0 );
+        send(system_state->sock , json , strlen(json) , 0 );
         run = 0;
     }
     pthread_mutex_unlock(&mutex);
@@ -100,10 +80,25 @@ void *read_bme280_sensor(void *param){
 
 void *read_input_sensors(void *param){
     pthread_mutex_lock(&mutex_input);
-    struct input_sensors * security_sensors = (struct input_sensors *)param;
+    int last_activate_alarm = 0;
+    int activate_alarm = 0;
+    struct system * system_state = (struct system *)param;
     while(!run_input){
         pthread_cond_wait(&condition_input, &mutex_input);
-        set_input_sensors(security_sensors);
+        set_input_sensors(&system_state->gpio_input);
+        activate_alarm = check_activate_alarm(&system_state->gpio_input);
+        char *json = malloc(30*sizeof(char));
+        if(activate_alarm && activate_alarm != last_activate_alarm){
+            /* send to central server message to turn on alarm */
+            json = "{ \"activate_alarm\": true }";
+            send(system_state->sock , json , strlen(json) , 0 );
+            last_activate_alarm = activate_alarm;
+        } else if(!activate_alarm && activate_alarm != last_activate_alarm){
+            /* send to central server message to turn off alarm */
+            json = "{ \"activate_alarm\": false }";
+            send(system_state->sock , json , strlen(json) , 0 );
+            last_activate_alarm = activate_alarm;
+        }
         run_input = 0;
     }
     pthread_mutex_unlock(&mutex_input);
@@ -162,6 +157,16 @@ void exit_program(int signal){
 void sig_handler(int signum){
 	n_executions++;
 
+    // send system state to central server every 1s
+    if(n_executions % 5 == 0){
+        pthread_mutex_lock(&mutex);
+        if(run == 0){
+            run = 1;
+            pthread_cond_signal(&condition);
+        }
+        pthread_mutex_unlock(&mutex);
+    }
+
     // reads bme280 sensor every 400ms
     if(n_executions % 2 == 0){
         pthread_mutex_lock(&mutex_bme280);
@@ -172,27 +177,39 @@ void sig_handler(int signum){
         pthread_mutex_unlock(&mutex_bme280);
     }
 
+    // check security sensors every 200ms
     pthread_mutex_lock(&mutex_input);
     if(run_input == 0){
         run_input = 1;
         pthread_cond_signal(&condition_input);
     }
     pthread_mutex_unlock(&mutex_input);
-
-    // send system state to central server every 1s
-    if(n_executions % 5 == 0){
-        pthread_mutex_lock(&mutex);
-        if(run == 0){
-            run = 1;
-            pthread_cond_signal(&condition);
-        }
-        pthread_mutex_unlock(&mutex);
-    }
     ualarm(2e5, 2e5);
 }
 
 int main(int argc, char const *argv[]) { 
+	struct sockaddr_in serv_addr;
 	struct system system_state;
+
+	if ((system_state->sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		printf("\n Socket creation error \n");
+		return -1;
+	}
+
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(PORT);
+
+	// Convert IPv4 and IPv6 addresses from text to binary form
+	if(inet_pton(AF_INET, CENTRAL_HOST, &serv_addr.sin_addr)<=0) {
+		printf("\nInvalid address/ Address not supported \n");
+		return -1;
+	}
+
+	if (connect(system_state->sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+		printf("\nConnection Failed \n");
+		return -1;
+	}
+
 	system_state.bme280_sensor.sensor_bme280 = create_sensor("/dev/i2c-1");
 	system_state.bme280_sensor.temperature = 22.15;
 
@@ -213,7 +230,7 @@ int main(int argc, char const *argv[]) {
     pthread_create(&thread_id[0], NULL, send_info, (void *)&system_state);
     pthread_create(&thread_id[1], NULL, receive_commands, NULL);
     pthread_create(&thread_id[2], NULL, read_bme280_sensor, (void *)&system_state.bme280_sensor);
-    pthread_create(&thread_id[3], NULL, read_input_sensors, (void *)&system_state.gpio_input);
+    pthread_create(&thread_id[3], NULL, read_input_sensors, (void *)&system_state);
 
     while(execute){sleep(1);}
 
