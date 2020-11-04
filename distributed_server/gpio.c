@@ -51,6 +51,20 @@ void set_input_sensors(struct input_sensors *security_sensors){
     security_sensors->bedroom_window_02 = bcm2835_gpio_lev(BEDROOM_WINDOW_02);
 }
 
+int check_activate_alarm(struct input_sensors *security_sensors) {
+    int activate_alarm = 0;
+    activate_alarm =
+        security_sensors->living_room ||
+        security_sensors->kitchen ||
+        security_sensors->kitchen_door ||
+        security_sensors->kitchen_window ||
+        security_sensors->living_room_door ||
+        security_sensors->living_room_window ||
+        security_sensors->bedroom_window_01 ||
+        security_sensors->bedroom_window_02 ||
+    return activate_alarm;
+}
+
 void close_gpio(){
     bcm2835_close();
 }
