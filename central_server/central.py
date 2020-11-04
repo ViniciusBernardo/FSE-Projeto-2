@@ -3,12 +3,13 @@ import json
 import socket
 import threading
 
-HOST = '192.168.0.53'  # Standard loopback interface address (localhost)
+CENTRAL_HOST = '192.168.0.53'
+DISTRIBUTED_HOST = '192.168.0.52'
 PORT = 8042        # Port to listen on (non-privileged ports are > 1023)
 
 def send_command():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    while sock.connect_ex(('', PORT)) != 0:
+    while sock.connect_ex((DISTRIBUTED_HOST, PORT)) != 0:
         print("Retrying to connect to distributed server in 3 seconds...")
         time.sleep(3)
     while True:
@@ -17,7 +18,7 @@ def send_command():
 
 def receive_info():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(('', PORT))
+    sock.bind((CENTRAL_HOST, PORT))
     sock.listen()
     conn, addr = sock.accept()
 
