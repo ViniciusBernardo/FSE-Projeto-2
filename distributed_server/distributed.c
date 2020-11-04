@@ -21,17 +21,38 @@ pthread_cond_t condition_input;
 unsigned int run = 0;
 unsigned int run_bme280 = 0;
 unsigned int run_input = 0;
+unsigned int n_executions = 0;
 int execute = 1;
 
-struct communication {
-    int sock;
+struct system {
     struct external_measurement bme280_sensor;
     struct input_sensors gpio_input;
 };
 
 void *send_info(void *param){
+	int sock = 0;
+	struct sockaddr_in serv_addr;
+	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		printf("\n Socket creation error \n");
+		return -1;
+	}
+
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(PORT);
+
+	// Convert IPv4 and IPv6 addresses from text to binary form
+	if(inet_pton(AF_INET, HOST, &serv_addr.sin_addr)<=0) {
+		printf("\nInvalid address/ Address not supported \n");
+		return -1;
+	}
+
+	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+		printf("\nConnection Failed \n");
+		return -1;
+	}
+
     pthread_mutex_lock(&mutex);
-    struct communication * conn_obj = (struct communication *)param;
+    struct system * system_state = (struct system *)param;
     char buffer[1024] = {0};
     while(!run){
         pthread_cond_wait(&condition, &mutex);
@@ -49,18 +70,18 @@ void *send_info(void *param){
             "   \"bedroom_window_01\": %d,"
             "   \"bedroom_window_02\": %d"
             "}",
-            conn_obj->bme280_sensor.temperature,
-            conn_obj->gpio_input.living_room,
-            conn_obj->gpio_input.kitchen,
-            conn_obj->gpio_input.kitchen_door,
-            conn_obj->gpio_input.kitchen_window,
-            conn_obj->gpio_input.living_room_door,
-            conn_obj->gpio_input.living_room_window,
-            conn_obj->gpio_input.bedroom_window_01,
-            conn_obj->gpio_input.bedroom_window_02
+            system_state->bme280_sensor.temperature,
+            system_state->gpio_input.living_room,
+            system_state->gpio_input.kitchen,
+            system_state->gpio_input.kitchen_door,
+            system_state->gpio_input.kitchen_window,
+            system_state->gpio_input.living_room_door,
+            system_state->gpio_input.living_room_window,
+            system_state->gpio_input.bedroom_window_01,
+            system_state->gpio_input.bedroom_window_02
         );
         printf("SENDING: %s\n", json);
-        send(conn_obj->sock , json , strlen(json) , 0 );
+        send(sock , json , strlen(json) , 0 );
         run = 0;
     }
     pthread_mutex_unlock(&mutex);
@@ -88,12 +109,48 @@ void *read_input_sensors(void *param){
     pthread_mutex_unlock(&mutex_input);
 }
 
-void *receive_commands(void *param){
-    struct communication * conn_obj = (struct communication *)param;
+void *receive_commands(){
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
     char buffer[1024] = {0};
-    int valread;
+
+    // Creating socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Forcefully attaching socket to the port 8080
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+                                                  &opt, sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons( PORT );
+
+    // Forcefully attaching socket to the port 8080
+    if (bind(server_fd, (struct sockaddr *)&address,
+                                 sizeof(address))<0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
+                       (socklen_t*)&addrlen))<0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+    }
+
     while(1){
-        valread = read(conn_obj->sock , buffer, 1024);
+        valread = read(new_socket, buffer, 1024);
         printf("BUFFER: %s\n", buffer);
     }
 }
@@ -103,12 +160,17 @@ void exit_program(int signal){
 };
 
 void sig_handler(int signum){
-    pthread_mutex_lock(&mutex_bme280);
-    if(run_bme280 == 0){
-        run_bme280 = 1;
-        pthread_cond_signal(&condition_bme280);
+	n_executions++;
+
+    // reads bme280 sensor every 400ms
+    if(n_executions % 2 == 0){
+        pthread_mutex_lock(&mutex_bme280);
+        if(run_bme280 == 0){
+            run_bme280 = 1;
+            pthread_cond_signal(&condition_bme280);
+        }
+        pthread_mutex_unlock(&mutex_bme280);
     }
-    pthread_mutex_unlock(&mutex_bme280);
 
     pthread_mutex_lock(&mutex_input);
     if(run_input == 0){
@@ -117,45 +179,28 @@ void sig_handler(int signum){
     }
     pthread_mutex_unlock(&mutex_input);
 
-    pthread_mutex_lock(&mutex);
-    if(run == 0){
-        run = 1;
-        pthread_cond_signal(&condition);
+    // send system state to central server every 1s
+    if(n_executions % 5 == 0){
+        pthread_mutex_lock(&mutex);
+        if(run == 0){
+            run = 1;
+            pthread_cond_signal(&condition);
+        }
+        pthread_mutex_unlock(&mutex);
     }
-    pthread_mutex_unlock(&mutex);
-    alarm(1);
+    ualarm(2e5, 2e5);
 }
 
 int main(int argc, char const *argv[]) { 
-	int sock = 0; 
-	struct sockaddr_in serv_addr; 
-	struct communication conn_obj;
-	conn_obj.bme280_sensor.sensor_bme280 = create_sensor("/dev/i2c-1");
-	conn_obj.bme280_sensor.temperature = 22.15;
-	if ((conn_obj.sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
-		printf("\n Socket creation error \n"); 
-		return -1; 
-	} 
-
-	serv_addr.sin_family = AF_INET; 
-	serv_addr.sin_port = htons(PORT); 
-	
-	// Convert IPv4 and IPv6 addresses from text to binary form 
-	if(inet_pton(AF_INET, HOST, &serv_addr.sin_addr)<=0) { 
-		printf("\nInvalid address/ Address not supported \n"); 
-		return -1; 
-	} 
-
-	if (connect(conn_obj.sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) { 
-		printf("\nConnection Failed \n"); 
-		return -1; 
-	} 
+	struct system_state system_state;
+	system_state.bme280_sensor.sensor_bme280 = create_sensor("/dev/i2c-1");
+	system_state.bme280_sensor.temperature = 22.15;
 
     initialize_gpio();
 
     signal(SIGALRM, sig_handler);
     signal(SIGINT, &exit_program);
-    alarm(1);
+    ualarm(2e5, 2e5);
 
     pthread_mutex_init(&mutex, NULL);
     pthread_mutex_init(&mutex_bme280, NULL);
@@ -165,10 +210,10 @@ int main(int argc, char const *argv[]) {
     pthread_cond_init(&condition_input, NULL);
 
     pthread_t thread_id[4];
-    pthread_create(&thread_id[0], NULL, send_info, (void *)&conn_obj);
-    pthread_create(&thread_id[1], NULL, receive_commands, (void *)&conn_obj);
-    pthread_create(&thread_id[2], NULL, read_bme280_sensor, (void *)&conn_obj.bme280_sensor);
-    pthread_create(&thread_id[3], NULL, read_input_sensors, (void *)&conn_obj.gpio_input);
+    pthread_create(&thread_id[0], NULL, send_info, (void *)&system_state);
+    pthread_create(&thread_id[1], NULL, receive_commands, NULL);
+    pthread_create(&thread_id[2], NULL, read_bme280_sensor, (void *)&system_state.bme280_sensor);
+    pthread_create(&thread_id[3], NULL, read_input_sensors, (void *)&system_state.gpio_input);
 
     while(execute){sleep(1);}
 
