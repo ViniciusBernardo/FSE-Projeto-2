@@ -9,7 +9,7 @@
 #include <signal.h>
 #include <pthread.h>
 
-#define HOST "192.168.0.53"
+#define CENTRAL_HOST "192.168.0.53"
 #define PORT 8042 
 
 pthread_mutex_t mutex;
@@ -41,7 +41,7 @@ void *send_info(void *param){
 	serv_addr.sin_port = htons(PORT);
 
 	// Convert IPv4 and IPv6 addresses from text to binary form
-	if(inet_pton(AF_INET, HOST, &serv_addr.sin_addr)<=0) {
+	if(inet_pton(AF_INET, CENTRAL_HOST, &serv_addr.sin_addr)<=0) {
 		printf("\nInvalid address/ Address not supported \n");
 		return -1;
 	}
@@ -192,7 +192,7 @@ void sig_handler(int signum){
 }
 
 int main(int argc, char const *argv[]) { 
-	struct system_state system_state;
+	struct system system_state;
 	system_state.bme280_sensor.sensor_bme280 = create_sensor("/dev/i2c-1");
 	system_state.bme280_sensor.temperature = 22.15;
 
