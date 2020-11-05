@@ -61,7 +61,7 @@ int check_activate_alarm(struct input_sensors *security_sensors) {
         security_sensors->living_room_door ||
         security_sensors->living_room_window ||
         security_sensors->bedroom_window_01 ||
-        security_sensors->bedroom_window_02 ||
+        security_sensors->bedroom_window_02;
     return activate_alarm;
 }
 

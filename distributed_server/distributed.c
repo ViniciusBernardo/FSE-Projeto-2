@@ -26,7 +26,7 @@ int execute = 1;
 
 struct system {
     int sock;
-    struct external_measurement bme280_sensor;
+    struct bme280_system bme280_sensor;
     struct input_sensors gpio_input;
 };
 
@@ -62,7 +62,6 @@ void *send_info(void *param){
             system_state->gpio_input.bedroom_window_01,
             system_state->gpio_input.bedroom_window_02
         );
-        printf("SENDING: %s\n", json);
         send(system_state->sock , json , strlen(json) , 0 );
         run = 0;
     }
@@ -71,11 +70,10 @@ void *send_info(void *param){
 
 void *read_bme280_sensor(void *param){
     pthread_mutex_lock(&mutex_bme280);
-    struct external_measurement * measurements = (struct external_measurement *)param;
+    struct bme280_system * measurements = (struct bme280_system *)param;
     while(!run_bme280){
         pthread_cond_wait(&condition_bme280, &mutex_bme280);
-        measurements->temperature = get_temperature(measurements->sensor_bme280);
-        measurements->humidity = get_humidity(measurements->sensor_bme280);
+        get_sensor_data(measurements);
         run_bme280 = 0;
     }
     pthread_mutex_unlock(&mutex_bme280);
@@ -194,7 +192,7 @@ int main(int argc, char const *argv[]) {
 	struct sockaddr_in serv_addr;
 	struct system system_state;
 
-	if ((system_state->sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+	if ((system_state.sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		printf("\n Socket creation error \n");
 		return -1;
 	}
@@ -208,7 +206,7 @@ int main(int argc, char const *argv[]) {
 		return -1;
 	}
 
-	if (connect(system_state->sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+	if (connect(system_state.sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
 		printf("\nConnection Failed \n");
 		return -1;
 	}
