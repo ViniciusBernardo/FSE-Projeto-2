@@ -105,7 +105,9 @@ int8_t user_i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_p
  */
 int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr);
 
-float get_external_temperature(struct bme280_dev * device);
+float get_temperature(struct bme280_dev * device);
+
+float get_humidity(struct bme280_dev * device);
 
 struct bme280_dev * create_sensor(const char path_ic2_bus[]);
 
@@ -166,7 +168,7 @@ struct bme280_dev * create_sensor(const char path_ic2_bus[]){
     return device;
 }
 
-float get_external_temperature(struct bme280_dev * device){
+float get_temperature(struct bme280_dev * device){
 
     /* Variable to define the result */
     int8_t rslt = BME280_OK;
@@ -209,6 +211,51 @@ float get_external_temperature(struct bme280_dev * device){
 #endif
 
     return temperature;
+}
+
+float get_humidity(struct bme280_dev * device){
+
+    /* Variable to define the result */
+    int8_t rslt = BME280_OK;
+
+    /* Variable to store minimum wait time between consecutive measurement in force mode */
+    uint32_t req_delay;
+
+    /* Structure to get the pressure, temperature and humidity values */
+    struct bme280_data comp_data;
+
+    /*Calculate the minimum delay required between consecutive measurement based upon the sensor enabled
+     *  and the oversampling configuration. */
+    req_delay = bme280_cal_meas_delay(&device->settings);
+
+    /* Set the sensor to forced mode */
+    rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, device);
+    if (rslt != BME280_OK){
+        fprintf(stderr, "Failed to set sensor mode (code %+d).\n", rslt);
+        exit(1);
+    }
+
+    /* Wait for the measurement to complete and print data */
+    device->delay_us(8e4, device->intf_ptr);
+    rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, device);
+    if (rslt != BME280_OK){
+        fprintf(stderr, "Failed to get sensor data (code %+d).\n", rslt);
+        exit(1);
+    }
+
+    float humidity;
+
+#ifdef BME280_FLOAT_ENABLE
+    humidity = comp_data.humidity;
+#else
+#ifdef BME280_64BIT_ENABLE
+    humidity = 1.0f / 1024.0f * comp_data.humidity;
+#else
+    humidity = 1.0f / 1024.0f * comp_data.humidity;
+#endif
+#endif
+
+    return humidity;
 }
 
 /*!

@@ -41,6 +41,7 @@ void *send_info(void *param){
             json,
             "{"
             "   \"temperature\": %.2f,"
+            "   \"humidity\": %.2f,"
             "   \"living_room\": %d,"
             "   \"kitchen\": %d,"
             "   \"kitchen_door\": %d,"
@@ -51,6 +52,7 @@ void *send_info(void *param){
             "   \"bedroom_window_02\": %d"
             "}",
             system_state->bme280_sensor.temperature,
+            system_state->bme280_sensor.humidity,
             system_state->gpio_input.living_room,
             system_state->gpio_input.kitchen,
             system_state->gpio_input.kitchen_door,
@@ -72,7 +74,8 @@ void *read_bme280_sensor(void *param){
     struct external_measurement * measurements = (struct external_measurement *)param;
     while(!run_bme280){
         pthread_cond_wait(&condition_bme280, &mutex_bme280);
-        measurements->temperature = get_external_temperature(measurements->sensor_bme280);
+        measurements->temperature = get_temperature(measurements->sensor_bme280);
+        measurements->humidity = get_humidity(measurements->sensor_bme280);
         run_bme280 = 0;
     }
     pthread_mutex_unlock(&mutex_bme280);
