@@ -20,7 +20,7 @@ def send_command():
     menu = InputMenu(stdscr)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     while sock.connect_ex((DISTRIBUTED_HOST, DISTRIBUTED_PORT)) != 0:
-        menu.print_info("Tentando se conectar ao servidor distribuído em 3 segundos...")
+        menu.print_info("Tentando se conectar ao servidor distribuído...")
         time.sleep(3)
     while True:
         command = menu.get_user_input()

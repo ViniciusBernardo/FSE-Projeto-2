@@ -29,6 +29,7 @@ struct system {
     int sock;
     struct bme280_system bme280_sensor;
     struct input_sensors gpio_input;
+    struct output_devices gpio_output;
 };
 
 void *send_info(void *param){
@@ -38,33 +39,7 @@ void *send_info(void *param){
     while(!run){
         pthread_cond_wait(&condition, &mutex);
         char *json = malloc(300*sizeof(char));
-        sprintf(
-            json,
-            "{"
-            "   \"temperature\": %.2f,"
-            "   \"humidity\": %.2f,"
-            "   \"living_room\": %d,"
-            "   \"kitchen\": %d,"
-            "   \"kitchen_door\": %d,"
-            "   \"kitchen_window\": %d,"
-            "   \"living_room_door\": %d,"
-            "   \"living_room_window\": %d,"
-            "   \"bedroom_window_01\": %d,"
-            "   \"bedroom_window_02\": %d,"
-            "   \"activate_alarm\": %d"
-            "}",
-            system_state->bme280_sensor.temperature,
-            system_state->bme280_sensor.humidity,
-            system_state->gpio_input.living_room,
-            system_state->gpio_input.kitchen,
-            system_state->gpio_input.kitchen_door,
-            system_state->gpio_input.kitchen_window,
-            system_state->gpio_input.living_room_door,
-            system_state->gpio_input.living_room_window,
-            system_state->gpio_input.bedroom_window_01,
-            system_state->gpio_input.bedroom_window_02,
-	    system_state->gpio_input.activate_alarm
-        );
+        format_json(json, system_state);
         send(system_state->sock , json , strlen(json) , 0 );
         run = 0;
     }
@@ -93,64 +68,12 @@ void *read_input_sensors(void *param){
         char *json = malloc(300*sizeof(char));
         if(system_state->gpio_input.activate_alarm && system_state->gpio_input.activate_alarm != last_activate_alarm){
             /* send to central server message to turn on alarm */
-        sprintf(
-            json,
-            "{"
-            "   \"temperature\": %.2f,"
-            "   \"humidity\": %.2f,"
-            "   \"living_room\": %d,"
-            "   \"kitchen\": %d,"
-            "   \"kitchen_door\": %d,"
-            "   \"kitchen_window\": %d,"
-            "   \"living_room_door\": %d,"
-            "   \"living_room_window\": %d,"
-            "   \"bedroom_window_01\": %d,"
-            "   \"bedroom_window_02\": %d,"
-            "   \"activate_alarm\": %d"
-            "}",
-            system_state->bme280_sensor.temperature,
-            system_state->bme280_sensor.humidity,
-            system_state->gpio_input.living_room,
-            system_state->gpio_input.kitchen,
-            system_state->gpio_input.kitchen_door,
-            system_state->gpio_input.kitchen_window,
-            system_state->gpio_input.living_room_door,
-            system_state->gpio_input.living_room_window,
-            system_state->gpio_input.bedroom_window_01,
-            system_state->gpio_input.bedroom_window_02,
-	    system_state->gpio_input.activate_alarm
-        );
+            format_json(json, system_state);
             send(system_state->sock , json , strlen(json) , 0 );
             last_activate_alarm = system_state->gpio_input.activate_alarm;
         } else if(!system_state->gpio_input.activate_alarm && system_state->gpio_input.activate_alarm != last_activate_alarm){
             /* send to central server message to turn off alarm */
-        sprintf(
-            json,
-            "{"
-            "   \"temperature\": %.2f,"
-            "   \"humidity\": %.2f,"
-            "   \"living_room\": %d,"
-            "   \"kitchen\": %d,"
-            "   \"kitchen_door\": %d,"
-            "   \"kitchen_window\": %d,"
-            "   \"living_room_door\": %d,"
-            "   \"living_room_window\": %d,"
-            "   \"bedroom_window_01\": %d,"
-            "   \"bedroom_window_02\": %d,"
-            "   \"activate_alarm\": %d"
-            "}",
-            system_state->bme280_sensor.temperature,
-            system_state->bme280_sensor.humidity,
-            system_state->gpio_input.living_room,
-            system_state->gpio_input.kitchen,
-            system_state->gpio_input.kitchen_door,
-            system_state->gpio_input.kitchen_window,
-            system_state->gpio_input.living_room_door,
-            system_state->gpio_input.living_room_window,
-            system_state->gpio_input.bedroom_window_01,
-            system_state->gpio_input.bedroom_window_02,
-	    system_state->gpio_input.activate_alarm
-        );
+            format_json(json, system_state);
             send(system_state->sock , json , strlen(json) , 0 );
             last_activate_alarm = system_state->gpio_input.activate_alarm;
         }
@@ -159,7 +82,7 @@ void *read_input_sensors(void *param){
     pthread_mutex_unlock(&mutex_input);
 }
 
-void *receive_commands(){
+void *receive_commands(void *params){
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
     int opt = 1;
@@ -199,10 +122,13 @@ void *receive_commands(){
         exit(EXIT_FAILURE);
     }
 
+    struct output_devices * devices = (struct output_devices *)param;
+
     while(1){
         valread = read(new_socket, buffer, 1024);
+        set_output_devices(devices, valread);
         printf("BUFFER: %s\n", buffer);
-	memset(&buffer[0], 0, sizeof(buffer));
+        memset(&buffer[0], 0, sizeof(buffer));
     }
 }
 
@@ -241,6 +167,48 @@ void sig_handler(int signum){
     }
     pthread_mutex_unlock(&mutex_input);
     ualarm(2e5, 2e5);
+}
+
+void format_json(char *json, struct system * system_state){
+    sprintf(
+        json,
+        "{"
+        "   \"temperature\": %.2f,"
+        "   \"humidity\": %.2f,"
+        "   \"living_room\": %d,"
+        "   \"kitchen\": %d,"
+        "   \"kitchen_door\": %d,"
+        "   \"kitchen_window\": %d,"
+        "   \"living_room_door\": %d,"
+        "   \"living_room_window\": %d,"
+        "   \"bedroom_window_01\": %d,"
+        "   \"bedroom_window_02\": %d,"
+        "   \"activate_alarm\": %d,"
+        "   \"lamp_01\": %d,"
+        "   \"lamp_02\": %d,"
+        "   \"lamp_03\": %d,"
+        "   \"lamp_04\": %d,"
+        "   \"ac_01\": %d,"
+        "   \"ac_02\": %d"
+        "}",
+        system_state->bme280_sensor.temperature,
+        system_state->bme280_sensor.humidity,
+        system_state->gpio_input.living_room,
+        system_state->gpio_input.kitchen,
+        system_state->gpio_input.kitchen_door,
+        system_state->gpio_input.kitchen_window,
+        system_state->gpio_input.living_room_door,
+        system_state->gpio_input.living_room_window,
+        system_state->gpio_input.bedroom_window_01,
+        system_state->gpio_input.bedroom_window_02,
+        system_state->gpio_input.activate_alarm,
+        system_state->gpio_output.lamp_01,
+        system_state->gpio_output.lamp_02,
+        system_state->gpio_output.lamp_03,
+        system_state->gpio_output.lamp_04,
+        system_state->gpio_output.ac_01,
+        system_state->gpio_output.ac_02
+    );
 }
 
 int main(int argc, char const *argv[]) { 
@@ -284,7 +252,7 @@ int main(int argc, char const *argv[]) {
 
     pthread_t thread_id[4];
     pthread_create(&thread_id[0], NULL, send_info, (void *)&system_state);
-    pthread_create(&thread_id[1], NULL, receive_commands, NULL);
+    pthread_create(&thread_id[1], NULL, receive_commands, (void *)&system_state.gpio_output);
     pthread_create(&thread_id[2], NULL, read_bme280_sensor, (void *)&system_state.bme280_sensor);
     pthread_create(&thread_id[3], NULL, read_input_sensors, (void *)&system_state);
 

@@ -6,6 +6,13 @@
 #include <pthread.h>
 #include <bcm2835.h>
 
+#define LAMP_01 RPI_GPIO_P1_11
+#define LAMP_02 RPI_GPIO_P1_12
+#define LAMP_03 RPI_V2_GPIO_P1_13
+#define LAMP_04 RPI_GPIO_P1_15
+#define AC_01 RPI_GPIO_P1_16
+#define AC_02 RPI_GPIO_P1_18
+
 #define LIVING_ROOM RPI_GPIO_P1_22
 #define KITCHEN RPI_V2_GPIO_P1_37
 #define KITCHEN_DOOR RPI_V2_GPIO_P1_29
@@ -27,6 +34,15 @@ struct input_sensors {
     int activate_alarm;
 };
 
+struct output_devices {
+    int lamp_01;
+    int lamp_02;
+    int lamp_03;
+    int lamp_04;
+    int ac_01;
+    int ac_02;
+};
+
 void initialize_gpio(){
     if (!bcm2835_init())
         return;
@@ -39,6 +55,13 @@ void initialize_gpio(){
     bcm2835_gpio_fsel(LIVING_ROOM_WINDOW, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_fsel(BEDROOM_WINDOW_01, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_fsel(BEDROOM_WINDOW_02, BCM2835_GPIO_FSEL_INPT);
+
+    bcm2835_gpio_fsel(LAMP_01, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(LAMP_02, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(LAMP_03, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(LAMP_04, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(AC_01, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(AC_02, BCM2835_GPIO_FSEL_OUTP);
 }
 
 void set_input_sensors(struct input_sensors *security_sensors){
@@ -50,6 +73,38 @@ void set_input_sensors(struct input_sensors *security_sensors){
     security_sensors->living_room_window = bcm2835_gpio_lev(LIVING_ROOM_WINDOW);
     security_sensors->bedroom_window_01 = bcm2835_gpio_lev(BEDROOM_WINDOW_01);
     security_sensors->bedroom_window_02 = bcm2835_gpio_lev(BEDROOM_WINDOW_02);
+}
+
+void set_output_devices(struct output_devices *devices, char *command){
+    bcm2835_delay(50);
+    switch(command) {
+        case "lamp_01" :
+            bcm2835_gpio_write(LAMP_01, !devices->lamp_01);
+            devices->lamp_01 = !devices->lamp_01;
+            break;
+        case "lamp_02" :
+            bcm2835_gpio_write(LAMP_02, !devices->lamp_02);
+            devices->lamp_02 = !devices->lamp_02;
+            break;
+        case "lamp_03" :
+            bcm2835_gpio_write(LAMP_03, !devices->lamp_03);
+            devices->lamp_03 = !devices->lamp_03;
+            break;
+        case "lamp_04" :
+            bcm2835_gpio_write(LAMP_04, !devices->lamp_04);
+            devices->lamp_04 = !devices->lamp_04;
+            break;
+        case "ac_01" :
+            bcm2835_gpio_write(AC_01, !devices->ac_01);
+            devices->ac_01 = !devices->ac_01;
+            break;
+        case "ac_02" :
+            bcm2835_gpio_write(AC_02, !devices->ac_02);
+            devices->ac_02 = !devices->ac_02;
+            break;
+        default :
+            printf("Invalid command: %s\n", command);
+    }
 }
 
 int check_activate_alarm(struct input_sensors *security_sensors) {

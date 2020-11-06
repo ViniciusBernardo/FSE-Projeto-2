@@ -3,13 +3,13 @@ import curses
 class InputMenu:
 
     choices = [
-        "Ligar Lâmpada 01 (Cozinha)",
-        "Ligar Lâmpada 02 (Sala)",
-        "Ligar Lâmpada 03 (Quarto 01)",
-        "Ligar Lâmpada 04 (Quarto 02)",
-        "Ligar Ar-Condicionado 01 (Quarto 01)",
-        "Ligar Ar-Condicionado 02 (Quarto 02)",
-        "Sair"
+        ("1 - Ligar/Desligar Lâmpada 01 (Cozinha)", "lamp_01"),
+        ("2 - Ligar/Desligar Lâmpada 02 (Sala)", "lamp_02"),
+        ("3 - Ligar/Desligar Lâmpada 03 (Quarto 01)", "lamp_03"),
+        ("4 - Ligar/Desligar Lâmpada 04 (Quarto 02)", "lamp_04"),
+        ("5 - Ligar/Desligar Ar-Condicionado 01 (Quarto 01)", "ac_01"),
+        ("6 - Ligar/Desligar Ar-Condicionado 02 (Quarto 02)", "ac_02"),
+        ("7 - Sair", "quit")
     ]
 
     def __init__(self, stdscr):
@@ -37,11 +37,11 @@ class InputMenu:
                 else:
                     self.highlight += 1
             elif c == 10:
-                self.choice = self.choices[self.highlight - 1]
+                self.choice = self.choices[self.highlight - 1][-1]
 
             self.print_menu()
 
-            if self.choice != 'Sair':
+            if self.choice != '':
                 break
 
         return self.choice
@@ -50,10 +50,10 @@ class InputMenu:
         x = 3
         y = 4
         self.window.clear()
-        self.window.addstr(1, 1, "Utilize as setas para navegar entre as opções");
-        self.window.addstr(2, 1, "Pressione Enter para selecionar uma opção");
+        self.window.addstr(1, 1, "Utilize as setas para navegar entre as opções")
+        self.window.addstr(2, 1, "Pressione Enter para selecionar uma opção")
         self.window.box()
-        for i, choice in enumerate(self.choices):
+        for i, (choice, key) in enumerate(self.choices):
             if self.highlight == i + 1:
                 self.window.addstr(y, x, choice, curses.A_REVERSE)
             else:
@@ -61,8 +61,8 @@ class InputMenu:
             y += 1
         self.window.refresh()
 
-    def print_info(self, messagem, y=1, x=1):
+    def print_info(self, message, y=1, x=1):
         self.window.clear()
-        self.window.addstr(y, x, "Tentando se conectar com o servidor distribuído em 3 segundos...");
+        self.window.addstr(y, x, message)
         self.window.box()
         self.window.refresh()
