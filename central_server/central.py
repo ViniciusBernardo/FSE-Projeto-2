@@ -4,6 +4,7 @@ import socket
 import curses
 import threading
 from output_menu import OutputMenu
+from input_menu import InputMenu
 
 CENTRAL_HOST = '192.168.0.53'
 DISTRIBUTED_HOST = '192.168.0.52'
@@ -16,14 +17,14 @@ curses.cbreak()
 stdscr.keypad(True)
 
 def send_command():
+    menu = InputMenu(stdscr)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     while sock.connect_ex((DISTRIBUTED_HOST, DISTRIBUTED_PORT)) != 0:
-        #print("Retrying to connect to distributed server in 3 seconds...")
+        menu.print_info("Tentando se conectar ao servidor distribuído em 3 segundos...")
         time.sleep(3)
     while True:
-        #command = input("Enter with command: ")
-        #sock.sendall(bytes(command, 'utf-8'))
-        time.sleep(3)
+        command = menu.get_user_input()
+        sock.sendall(bytes(command, 'utf-8'))
 
 def receive_info():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
