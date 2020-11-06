@@ -3,10 +3,12 @@ import json
 import socket
 import curses
 import threading
+from output_menu import OutputMenu
 
 CENTRAL_HOST = '192.168.0.53'
 DISTRIBUTED_HOST = '192.168.0.52'
-PORT = 8042        # Port to listen on (non-privileged ports are > 1023)
+CENTRAL_PORT = 10009
+DISTRIBUTED_PORT = 10109
 
 stdscr = curses.initscr()
 curses.noecho()
@@ -15,37 +17,27 @@ stdscr.keypad(True)
 
 def send_command():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    while sock.connect_ex((DISTRIBUTED_HOST, PORT)) != 0:
-        print("Retrying to connect to distributed server in 3 seconds...")
+    while sock.connect_ex((DISTRIBUTED_HOST, DISTRIBUTED_PORT)) != 0:
+        #print("Retrying to connect to distributed server in 3 seconds...")
         time.sleep(3)
     while True:
-        command = input("Enter with command: ")
-        sock.sendall(bytes(command, 'utf-8'))
+        #command = input("Enter with command: ")
+        #sock.sendall(bytes(command, 'utf-8'))
+        time.sleep(3)
 
 def receive_info():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind((CENTRAL_HOST, PORT))
+    sock.bind((CENTRAL_HOST, CENTRAL_PORT))
     sock.listen()
     conn, addr = sock.accept()
+
+    menu = OutputMenu(stdscr)
 
     while True:
         data = conn.recv(1024)
         if data:
             data = json.loads(data)
-            max_y, max_x = stdscr.getmaxyx()
-            win = curses.newwin(max_y, int(max_x / 2), 0, int(max_x / 2))
-            win.box()
-            win.addstr(2, 2, f'Temperatura:                              {data.get("temperature")}')
-            win.addstr(3, 2, f'Umidade:                                  {data.get("humidity")}')
-            win.addstr(4, 2, f'Sensor de Presença 01 (Sala):             {data.get("living_room")}')
-            win.addstr(5, 2, f'Sensor de Presença 02 (Cozinha):          {data.get("kitchen")}')
-            win.addstr(6, 2, f'Sensor Abertura 01 (Porta Cozinha):       {data.get("kitchen_door")}')
-            win.addstr(7, 2, f'Sensor Abertura 02 (Janela Cozinha):      {data.get("kitchen_window")}')
-            win.addstr(8, 2, f'Sensor Abertura 03 (Porta Sala):          {data.get("living_room_door")}')
-            win.addstr(9, 2, f'Sensor Abertura 04 (Janela Sala):         {data.get("living_room_window")}')
-            win.addstr(10, 2, f'Sensor Abertura 05 (Janela Quarto 01):    {data.get("bedroom_window_01")}')
-            win.addstr(11, 2, f'Sensor Abertura 05 (Janela Quarto 02):    {data.get("bedroom_window_02")}')
-            win.refresh()
+            menu.show_data(data)
         else:
             break
 
