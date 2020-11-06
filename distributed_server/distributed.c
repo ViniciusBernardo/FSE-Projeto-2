@@ -1,16 +1,17 @@
-// Client side C/C++ program to demonstrate Socket programming 
+// Client side C/C++ program to demonstrate Socket programming
 #include "bme280/sensor_bme280.c"
 #include "gpio.c"
-#include <stdio.h> 
-#include <sys/socket.h> 
-#include <arpa/inet.h> 
-#include <unistd.h> 
-#include <string.h> 
+#include <stdio.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
 #include <signal.h>
 #include <pthread.h>
 
 #define CENTRAL_HOST "192.168.0.53"
-#define PORT 8042 
+#define CENTRAL_PORT 10009
+#define DISTRIBUTED_PORT 10109
 
 pthread_mutex_t mutex;
 pthread_mutex_t mutex_bme280;
@@ -49,7 +50,8 @@ void *send_info(void *param){
             "   \"living_room_door\": %d,"
             "   \"living_room_window\": %d,"
             "   \"bedroom_window_01\": %d,"
-            "   \"bedroom_window_02\": %d"
+            "   \"bedroom_window_02\": %d,"
+            "   \"activate_alarm\": %d"
             "}",
             system_state->bme280_sensor.temperature,
             system_state->bme280_sensor.humidity,
@@ -60,7 +62,8 @@ void *send_info(void *param){
             system_state->gpio_input.living_room_door,
             system_state->gpio_input.living_room_window,
             system_state->gpio_input.bedroom_window_01,
-            system_state->gpio_input.bedroom_window_02
+            system_state->gpio_input.bedroom_window_02,
+	    system_state->gpio_input.activate_alarm
         );
         send(system_state->sock , json , strlen(json) , 0 );
         run = 0;
@@ -82,23 +85,74 @@ void *read_bme280_sensor(void *param){
 void *read_input_sensors(void *param){
     pthread_mutex_lock(&mutex_input);
     int last_activate_alarm = 0;
-    int activate_alarm = 0;
     struct system * system_state = (struct system *)param;
     while(!run_input){
         pthread_cond_wait(&condition_input, &mutex_input);
         set_input_sensors(&system_state->gpio_input);
-        activate_alarm = check_activate_alarm(&system_state->gpio_input);
-        char *json = malloc(30*sizeof(char));
-        if(activate_alarm && activate_alarm != last_activate_alarm){
+        system_state->gpio_input.activate_alarm = check_activate_alarm(&system_state->gpio_input);
+        char *json = malloc(300*sizeof(char));
+        if(system_state->gpio_input.activate_alarm && system_state->gpio_input.activate_alarm != last_activate_alarm){
             /* send to central server message to turn on alarm */
-            json = "{ \"activate_alarm\": true }";
+        sprintf(
+            json,
+            "{"
+            "   \"temperature\": %.2f,"
+            "   \"humidity\": %.2f,"
+            "   \"living_room\": %d,"
+            "   \"kitchen\": %d,"
+            "   \"kitchen_door\": %d,"
+            "   \"kitchen_window\": %d,"
+            "   \"living_room_door\": %d,"
+            "   \"living_room_window\": %d,"
+            "   \"bedroom_window_01\": %d,"
+            "   \"bedroom_window_02\": %d,"
+            "   \"activate_alarm\": %d"
+            "}",
+            system_state->bme280_sensor.temperature,
+            system_state->bme280_sensor.humidity,
+            system_state->gpio_input.living_room,
+            system_state->gpio_input.kitchen,
+            system_state->gpio_input.kitchen_door,
+            system_state->gpio_input.kitchen_window,
+            system_state->gpio_input.living_room_door,
+            system_state->gpio_input.living_room_window,
+            system_state->gpio_input.bedroom_window_01,
+            system_state->gpio_input.bedroom_window_02,
+	    system_state->gpio_input.activate_alarm
+        );
             send(system_state->sock , json , strlen(json) , 0 );
-            last_activate_alarm = activate_alarm;
-        } else if(!activate_alarm && activate_alarm != last_activate_alarm){
+            last_activate_alarm = system_state->gpio_input.activate_alarm;
+        } else if(!system_state->gpio_input.activate_alarm && system_state->gpio_input.activate_alarm != last_activate_alarm){
             /* send to central server message to turn off alarm */
-            json = "{ \"activate_alarm\": false }";
+        sprintf(
+            json,
+            "{"
+            "   \"temperature\": %.2f,"
+            "   \"humidity\": %.2f,"
+            "   \"living_room\": %d,"
+            "   \"kitchen\": %d,"
+            "   \"kitchen_door\": %d,"
+            "   \"kitchen_window\": %d,"
+            "   \"living_room_door\": %d,"
+            "   \"living_room_window\": %d,"
+            "   \"bedroom_window_01\": %d,"
+            "   \"bedroom_window_02\": %d,"
+            "   \"activate_alarm\": %d"
+            "}",
+            system_state->bme280_sensor.temperature,
+            system_state->bme280_sensor.humidity,
+            system_state->gpio_input.living_room,
+            system_state->gpio_input.kitchen,
+            system_state->gpio_input.kitchen_door,
+            system_state->gpio_input.kitchen_window,
+            system_state->gpio_input.living_room_door,
+            system_state->gpio_input.living_room_window,
+            system_state->gpio_input.bedroom_window_01,
+            system_state->gpio_input.bedroom_window_02,
+	    system_state->gpio_input.activate_alarm
+        );
             send(system_state->sock , json , strlen(json) , 0 );
-            last_activate_alarm = activate_alarm;
+            last_activate_alarm = system_state->gpio_input.activate_alarm;
         }
         run_input = 0;
     }
@@ -126,7 +180,7 @@ void *receive_commands(){
     }
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( PORT );
+    address.sin_port = htons( DISTRIBUTED_PORT );
 
     // Forcefully attaching socket to the port 8080
     if (bind(server_fd, (struct sockaddr *)&address,
@@ -148,6 +202,7 @@ void *receive_commands(){
     while(1){
         valread = read(new_socket, buffer, 1024);
         printf("BUFFER: %s\n", buffer);
+	memset(&buffer[0], 0, sizeof(buffer));
     }
 }
 
@@ -198,7 +253,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
+	serv_addr.sin_port = htons(CENTRAL_PORT);
 
 	// Convert IPv4 and IPv6 addresses from text to binary form
 	if(inet_pton(AF_INET, CENTRAL_HOST, &serv_addr.sin_addr)<=0) {

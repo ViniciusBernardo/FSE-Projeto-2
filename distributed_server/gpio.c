@@ -24,6 +24,7 @@ struct input_sensors {
     int living_room_window;
     int bedroom_window_01;
     int bedroom_window_02;
+    int activate_alarm;
 };
 
 void initialize_gpio(){
