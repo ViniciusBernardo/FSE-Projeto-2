@@ -76,34 +76,32 @@ void set_input_sensors(struct input_sensors *security_sensors){
 }
 
 void set_output_devices(struct output_devices *devices, char *command){
-    bcm2835_delay(50);
-    switch(command) {
-        case "lamp_01" :
-            bcm2835_gpio_write(LAMP_01, !devices->lamp_01);
-            devices->lamp_01 = !devices->lamp_01;
-            break;
-        case "lamp_02" :
-            bcm2835_gpio_write(LAMP_02, !devices->lamp_02);
-            devices->lamp_02 = !devices->lamp_02;
-            break;
-        case "lamp_03" :
-            bcm2835_gpio_write(LAMP_03, !devices->lamp_03);
-            devices->lamp_03 = !devices->lamp_03;
-            break;
-        case "lamp_04" :
-            bcm2835_gpio_write(LAMP_04, !devices->lamp_04);
-            devices->lamp_04 = !devices->lamp_04;
-            break;
-        case "ac_01" :
-            bcm2835_gpio_write(AC_01, !devices->ac_01);
-            devices->ac_01 = !devices->ac_01;
-            break;
-        case "ac_02" :
-            bcm2835_gpio_write(AC_02, !devices->ac_02);
-            devices->ac_02 = !devices->ac_02;
-            break;
-        default :
-            printf("Invalid command: %s\n", command);
+    if(strcmp(command, "lamp_01") == 0){
+        bcm2835_delay(50);
+        bcm2835_gpio_write(LAMP_01, !devices->lamp_01);
+        devices->lamp_01 = !devices->lamp_01;
+    } else if(strcmp(command, "lamp_02") == 0) {
+        bcm2835_delay(50);
+        bcm2835_gpio_write(LAMP_02, !devices->lamp_02);
+        devices->lamp_02 = !devices->lamp_02;
+    } else if(strcmp(command, "lamp_03") == 0) {
+        bcm2835_delay(50);
+        bcm2835_gpio_write(LAMP_03, !devices->lamp_03);
+        devices->lamp_03 = !devices->lamp_03;
+    } else if(strcmp(command, "lamp_04") == 0) {
+        bcm2835_delay(50);
+        bcm2835_gpio_write(LAMP_04, !devices->lamp_04);
+        devices->lamp_04 = !devices->lamp_04;
+    } else if(strcmp(command, "ac_01") == 0) {
+        bcm2835_delay(50);
+        bcm2835_gpio_write(AC_01, !devices->ac_01);
+        devices->ac_01 = !devices->ac_01;
+    } else if(strcmp(command, "ac_02") == 0) {
+        bcm2835_delay(50);
+        bcm2835_gpio_write(AC_02, !devices->ac_02);
+        devices->ac_02 = !devices->ac_02;
+    } else {
+        printf("Invalid command: %s\n", command);
     }
 }
 

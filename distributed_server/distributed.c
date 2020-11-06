@@ -38,7 +38,7 @@ void *send_info(void *param){
     char buffer[1024] = {0};
     while(!run){
         pthread_cond_wait(&condition, &mutex);
-        char *json = malloc(300*sizeof(char));
+        char *json = malloc(400*sizeof(char));
         format_json(json, system_state);
         send(system_state->sock , json , strlen(json) , 0 );
         run = 0;
@@ -65,7 +65,7 @@ void *read_input_sensors(void *param){
         pthread_cond_wait(&condition_input, &mutex_input);
         set_input_sensors(&system_state->gpio_input);
         system_state->gpio_input.activate_alarm = check_activate_alarm(&system_state->gpio_input);
-        char *json = malloc(300*sizeof(char));
+        char *json = malloc(400*sizeof(char));
         if(system_state->gpio_input.activate_alarm && system_state->gpio_input.activate_alarm != last_activate_alarm){
             /* send to central server message to turn on alarm */
             format_json(json, system_state);
@@ -122,11 +122,11 @@ void *receive_commands(void *params){
         exit(EXIT_FAILURE);
     }
 
-    struct output_devices * devices = (struct output_devices *)param;
+    struct output_devices * devices = (struct output_devices *)params;
 
     while(1){
         valread = read(new_socket, buffer, 1024);
-        set_output_devices(devices, valread);
+        set_output_devices(devices, buffer);
         printf("BUFFER: %s\n", buffer);
         memset(&buffer[0], 0, sizeof(buffer));
     }
