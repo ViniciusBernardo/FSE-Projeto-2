@@ -10,7 +10,7 @@ class InputMenu:
         ("5 - Ligar/Desligar Ar-Condicionado 01 (Quarto 01)", "ac_01"),
         ("6 - Ligar/Desligar Ar-Condicionado 02 (Quarto 02)", "ac_02"),
         ("7 - Mudar temperatura ambiente", "temperature"),
-        ("7 - Sair", "quit")
+        ("8 - Sair", "quit")
     ]
 
     valid_characters = [
@@ -105,8 +105,7 @@ class InputMenu:
             elif c == 10:
                 temperature = float(temperature)
                 break
-            #elif c in self.valid_characters:
-            else:
+            elif c in self.valid_characters:
                 temperature += chr(c)
 
             self.window.addstr(6, 1, "Temperatura: " + temperature)
