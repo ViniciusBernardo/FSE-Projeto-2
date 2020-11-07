@@ -1,2 +1,3 @@
-bin
+distributed_server/bin/bin
+distributed_server/obj/*.o
 **/__pycache__/**
