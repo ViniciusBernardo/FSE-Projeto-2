@@ -9,12 +9,14 @@ import threading
 from output_menu import OutputMenu
 from input_menu import InputMenu
 from alarm_player import Player
+from csv_writer import CSVWriter
 
 CENTRAL_HOST = '192.168.0.53'
 DISTRIBUTED_HOST = '192.168.0.52'
 CENTRAL_PORT = 10009
 DISTRIBUTED_PORT = 10109
 
+csv_writer = CSVWriter()
 stdscr = curses.initscr()
 curses.noecho()
 curses.cbreak()
@@ -35,7 +37,7 @@ def send_command(sock):
         if command == 'quit':
             os.kill(os.getpid(), signal.SIGINT)
 
-def receive_info(sock, player):
+def receive_info(sock, player, csv):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((CENTRAL_HOST, CENTRAL_PORT))
     sock.listen()
@@ -49,18 +51,20 @@ def receive_info(sock, player):
             data = json.loads(data)
             player.decide_play_alarm(data['activate_alarm'])
             menu.show_data(data)
+            csv.write_row(data)
         else:
             break
 
 def signal_handler(sig, frame):
     player.stop()
+    csv_writer.close()
     socket_send.close()
     socket_receive.close()
     sys.exit(0)
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
-    receive_thread = threading.Thread(target=receive_info, args=(socket_receive, player,))
+    receive_thread = threading.Thread(target=receive_info, args=(socket_receive, player, csv_writer))
     send_command_thread = threading.Thread(target=send_command, args=(socket_send,))
 
     receive_thread.start()
