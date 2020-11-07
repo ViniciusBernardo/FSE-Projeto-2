@@ -49,7 +49,7 @@ def receive_info(sock, player):
         data = conn.recv(1024)
         if data:
             data = json.loads(data)
-            #player.decide_play_alarm(data['activate_alarm'])
+            player.decide_play_alarm(data['activate_alarm'])
             menu.show_data(data)
             csv_obj.write_row(data)
         else:
