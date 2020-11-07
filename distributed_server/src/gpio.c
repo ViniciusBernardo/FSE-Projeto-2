@@ -75,8 +75,6 @@ void set_output_devices(struct output_devices *devices, char *command){
         bcm2835_delay(50);
         bcm2835_gpio_write(AC_02, !devices->ac_02);
         devices->ac_02 = !devices->ac_02;
-    } else {
-        printf("Invalid command: %s\n", command);
     }
 }
 
@@ -95,5 +93,11 @@ int check_activate_alarm(struct input_sensors *security_sensors) {
 }
 
 void close_gpio(){
+    bcm2835_gpio_write(LAMP_01, LOW);
+    bcm2835_gpio_write(LAMP_02, LOW);
+    bcm2835_gpio_write(LAMP_03, LOW);
+    bcm2835_gpio_write(LAMP_04, LOW);
+    bcm2835_gpio_write(AC_01, LOW);
+    bcm2835_gpio_write(AC_02, LOW);
     bcm2835_close();
 }

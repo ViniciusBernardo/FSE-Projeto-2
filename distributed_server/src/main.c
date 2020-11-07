@@ -121,13 +121,12 @@ void *receive_commands(void *params){
     while(1){
         valread = read(new_socket, buffer, 1024);
 	if(strcmp(buffer, "quit") == 0){
-	    exit(0);
+		execute = 0;
 	} else if(sscanf(buffer, "%f", &system_state->desired_temperature) > 0){
 	    printf("Temperatura Atualizada para %.2f!\n", system_state->desired_temperature);
 	} else {
             set_output_devices(&system_state->gpio_output, buffer);
 	}
-        printf("BUFFER: %s\n", buffer);
         memset(&buffer[0], 0, sizeof(buffer));
     }
 }
@@ -139,26 +138,6 @@ void exit_program(int signal){
 void sig_handler(int signum){
 	n_executions++;
 
-    // send system state to central server every 1s
-    if(n_executions % 5 == 0){
-        pthread_mutex_lock(&mutex);
-        if(run == 0){
-            run = 1;
-            pthread_cond_signal(&condition);
-        }
-        pthread_mutex_unlock(&mutex);
-    }
-
-    // reads bme280 sensor every 400ms
-    if(n_executions % 2 == 0){
-        pthread_mutex_lock(&mutex_bme280);
-        if(run_bme280 == 0){
-            run_bme280 = 1;
-            pthread_cond_signal(&condition_bme280);
-        }
-        pthread_mutex_unlock(&mutex_bme280);
-    }
-
     // check security sensors every 200ms
     pthread_mutex_lock(&mutex_input);
     if(run_input == 0){
@@ -166,6 +145,24 @@ void sig_handler(int signum){
         pthread_cond_signal(&condition_input);
     }
     pthread_mutex_unlock(&mutex_input);
+
+    // send system state to central server every 1s
+    if(n_executions == 5){
+        pthread_mutex_lock(&mutex);
+        if(run == 0){
+            run = 1;
+            pthread_cond_signal(&condition);
+        }
+        pthread_mutex_unlock(&mutex);
+
+        pthread_mutex_lock(&mutex_bme280);
+        if(run_bme280 == 0){
+            run_bme280 = 1;
+            pthread_cond_signal(&condition_bme280);
+        }
+        pthread_mutex_unlock(&mutex_bme280);
+	n_executions = 0;
+    }
     ualarm(2e5, 2e5);
 }
 
@@ -194,6 +191,7 @@ int main(int argc, char const *argv[]) {
 
 	system_state.bme280_sensor.sensor_bme280 = create_sensor("/dev/i2c-1");
 	system_state.bme280_sensor.temperature = 22.15;
+	system_state.bme280_sensor.humidity = 50.0;
 	system_state.desired_temperature = 22.15;
 
     initialize_gpio(&system_state.gpio_output);
