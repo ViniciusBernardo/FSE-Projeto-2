@@ -27,6 +27,7 @@ int execute = 1;
 
 struct system {
     int sock;
+    float desired_temperature;
     struct bme280_system bme280_sensor;
     struct input_sensors gpio_input;
     struct output_devices gpio_output;
@@ -122,11 +123,18 @@ void *receive_commands(void *params){
         exit(EXIT_FAILURE);
     }
 
-    struct output_devices * devices = (struct output_devices *)params;
+    struct system * system_state = (struct system *)params;
 
+    char *temperature_str[11];
+    float temperature;
     while(1){
         valread = read(new_socket, buffer, 1024);
-        set_output_devices(devices, buffer);
+	if(strcmp(buffer, "quit") == 0){
+	    exit(0);
+	} else if(sscanf(buffer, "{\"%s\": %.2f}", temperature_str, temperature) > 0){
+	    system_state->desired_temperature = temperature;
+	}
+        set_output_devices(&system_state->gpio_output, buffer);
         printf("BUFFER: %s\n", buffer);
         memset(&buffer[0], 0, sizeof(buffer));
     }
@@ -189,7 +197,8 @@ void format_json(char *json, struct system * system_state){
         "   \"lamp_03\": %d,"
         "   \"lamp_04\": %d,"
         "   \"ac_01\": %d,"
-        "   \"ac_02\": %d"
+        "   \"ac_02\": %d,"
+        "   \"desired_temperature\": %d"
         "}",
         system_state->bme280_sensor.temperature,
         system_state->bme280_sensor.humidity,
@@ -207,7 +216,8 @@ void format_json(char *json, struct system * system_state){
         system_state->gpio_output.lamp_03,
         system_state->gpio_output.lamp_04,
         system_state->gpio_output.ac_01,
-        system_state->gpio_output.ac_02
+        system_state->gpio_output.ac_02,
+	system_state->desired_temperature
     );
 }
 
@@ -252,7 +262,7 @@ int main(int argc, char const *argv[]) {
 
     pthread_t thread_id[4];
     pthread_create(&thread_id[0], NULL, send_info, (void *)&system_state);
-    pthread_create(&thread_id[1], NULL, receive_commands, (void *)&system_state.gpio_output);
+    pthread_create(&thread_id[1], NULL, receive_commands, (void *)&system_state);
     pthread_create(&thread_id[2], NULL, read_bme280_sensor, (void *)&system_state.bme280_sensor);
     pthread_create(&thread_id[3], NULL, read_input_sensors, (void *)&system_state);
 
