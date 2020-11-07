@@ -43,7 +43,7 @@ struct output_devices {
     int ac_02;
 };
 
-void initialize_gpio(){
+void initialize_gpio(struct output_devices * devices){
     if (!bcm2835_init())
         return;
 
@@ -62,6 +62,20 @@ void initialize_gpio(){
     bcm2835_gpio_fsel(LAMP_04, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_fsel(AC_01, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_fsel(AC_02, BCM2835_GPIO_FSEL_OUTP);
+
+    bcm2835_gpio_write(LAMP_01, LOW);
+    bcm2835_gpio_write(LAMP_02, LOW);
+    bcm2835_gpio_write(LAMP_03, LOW);
+    bcm2835_gpio_write(LAMP_04, LOW);
+    bcm2835_gpio_write(AC_01, LOW);
+    bcm2835_gpio_write(AC_02, LOW);
+
+    devices->lamp_01 = 0;
+    devices->lamp_02 = 0;
+    devices->lamp_03 = 0;
+    devices->lamp_04 = 0;
+    devices->ac_01 = 0;
+    devices->ac_02 = 0;
 }
 
 void set_input_sensors(struct input_sensors *security_sensors){

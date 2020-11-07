@@ -237,7 +237,7 @@ int main(int argc, char const *argv[]) {
 	system_state.bme280_sensor.sensor_bme280 = create_sensor("/dev/i2c-1");
 	system_state.bme280_sensor.temperature = 22.15;
 
-    initialize_gpio();
+    initialize_gpio(&system_state.gpio_output);
 
     signal(SIGALRM, sig_handler);
     signal(SIGINT, &exit_program);
