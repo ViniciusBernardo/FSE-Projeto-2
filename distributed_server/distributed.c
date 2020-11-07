@@ -39,7 +39,7 @@ void *send_info(void *param){
     char buffer[1024] = {0};
     while(!run){
         pthread_cond_wait(&condition, &mutex);
-        char *json = malloc(400*sizeof(char));
+        char *json = malloc(420*sizeof(char));
         format_json(json, system_state);
         send(system_state->sock , json , strlen(json) , 0 );
         run = 0;
@@ -66,7 +66,7 @@ void *read_input_sensors(void *param){
         pthread_cond_wait(&condition_input, &mutex_input);
         set_input_sensors(&system_state->gpio_input);
         system_state->gpio_input.activate_alarm = check_activate_alarm(&system_state->gpio_input);
-        char *json = malloc(400*sizeof(char));
+        char *json = malloc(420*sizeof(char));
         if(system_state->gpio_input.activate_alarm && system_state->gpio_input.activate_alarm != last_activate_alarm){
             /* send to central server message to turn on alarm */
             format_json(json, system_state);
@@ -125,16 +125,15 @@ void *receive_commands(void *params){
 
     struct system * system_state = (struct system *)params;
 
-    char *temperature_str[11];
-    float temperature;
     while(1){
         valread = read(new_socket, buffer, 1024);
 	if(strcmp(buffer, "quit") == 0){
 	    exit(0);
-	} else if(sscanf(buffer, "{\"%s\": %.2f}", temperature_str, temperature) > 0){
-	    system_state->desired_temperature = temperature;
+	} else if(sscanf(buffer, "%f", &system_state->desired_temperature) > 0){
+	    printf("Temperatura Atualizada para %.2f!\n", system_state->desired_temperature);
+	} else {
+            set_output_devices(&system_state->gpio_output, buffer);
 	}
-        set_output_devices(&system_state->gpio_output, buffer);
         printf("BUFFER: %s\n", buffer);
         memset(&buffer[0], 0, sizeof(buffer));
     }
@@ -198,7 +197,7 @@ void format_json(char *json, struct system * system_state){
         "   \"lamp_04\": %d,"
         "   \"ac_01\": %d,"
         "   \"ac_02\": %d,"
-        "   \"desired_temperature\": %d"
+        "   \"desired_temperature\": %.2f"
         "}",
         system_state->bme280_sensor.temperature,
         system_state->bme280_sensor.humidity,
@@ -246,6 +245,7 @@ int main(int argc, char const *argv[]) {
 
 	system_state.bme280_sensor.sensor_bme280 = create_sensor("/dev/i2c-1");
 	system_state.bme280_sensor.temperature = 22.15;
+	system_state.desired_temperature = 22.15;
 
     initialize_gpio(&system_state.gpio_output);
 
