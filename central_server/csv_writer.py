@@ -39,7 +39,7 @@ class CSVWriter:
         data['date'] = f'{now.day}-{now.month}-{now.year}'
         data['time'] = f'{now.hour}:{now.minute}:{now.second}'
 
-        self.writer.writerows(data)
+        self.writer.writerows([data])
 
     def save(self):
         self.csv_file.close()

@@ -1,3 +1,4 @@
 distributed_server/bin/bin
 distributed_server/obj/*.o
+central_server/system_log.csv
 **/__pycache__/**
