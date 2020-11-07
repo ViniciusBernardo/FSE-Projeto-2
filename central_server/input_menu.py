@@ -111,4 +111,4 @@ class InputMenu:
 
             self.window.addstr(6, 1, "Temperatura: " + temperature)
             self.window.refresh()
-        return { 'temperature': temperature }
+        return f'{temperature}'

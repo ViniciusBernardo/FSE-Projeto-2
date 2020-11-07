@@ -24,10 +24,7 @@ def send_command():
         time.sleep(3)
     while True:
         command = menu.get_user_input()
-        if isinstance(command, str):
-            sock.sendall(bytes(command, 'utf-8'))
-        elif isinstance(command, dict):
-            sock.sendall(bytes(json.dumps(command), 'utf-8'))
+        sock.sendall(bytes(command, 'utf-8'))
 
 def receive_info():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
